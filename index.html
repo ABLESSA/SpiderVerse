@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finger Magic</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="stage" aria-label="Live finger magic camera">
+        <video id="camera" playsinline muted></video>
+        <canvas id="output"></canvas>
+        <canvas id="debug-canvas" aria-hidden="true"></canvas>
+
+        <div class="topbar">
+          <div>
+            <p class="eyebrow">Finger Magic</p>
+            <h1>Camera shader playground</h1>
+          </div>
+          <p id="status" class="status" role="status">Loading hand tracker...</p>
+        </div>
+
+        <div class="controls" aria-label="Region effect controls">
+          <div class="effect-pickers" id="effect-pickers"></div>
+          <label class="debug-toggle">
+            <input id="debug-toggle" type="checkbox" />
+            <span>Debug</span>
+          </label>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
