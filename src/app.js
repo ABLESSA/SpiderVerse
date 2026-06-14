@@ -21,6 +21,9 @@ const MEDIAPIPE_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${M
 const WASM_URL = `${MEDIAPIPE_BASE}/wasm`;
 
 const video = document.querySelector("#camera");
+const stage = document.querySelector("#stage");
+const topbar = document.querySelector(".topbar");
+const controls = document.querySelector(".controls");
 const canvas = document.querySelector("#output");
 const debugCanvas = document.querySelector("#debug-canvas");
 const effectPickers = document.querySelector("#effect-pickers");
@@ -46,34 +49,47 @@ function getHandLabel(result, index) {
 }
 
 async function loadHandTracker() {
-  const vision = await import(`${MEDIAPIPE_BASE}/vision_bundle.mjs`);
-  const filesetResolver = await vision.FilesetResolver.forVisionTasks(WASM_URL);
-
-  const options = {
-    runningMode,
-    numHands: 2,
-    minHandDetectionConfidence: 0.55,
-    minHandPresenceConfidence: 0.55,
-    minTrackingConfidence: 0.55
-  };
+  const timeoutId = window.setTimeout(() => {
+    setStatus("Hand tracker is still loading. Check network access to jsDelivr and Google model files.");
+  }, 8000);
 
   try {
-    return await vision.HandLandmarker.createFromOptions(filesetResolver, {
-      ...options,
-      baseOptions: {
-        modelAssetPath: MODEL_URL,
-        delegate: "GPU"
-      }
-    });
+    const vision = await import(`${MEDIAPIPE_BASE}/vision_bundle.mjs`);
+    const filesetResolver = await vision.FilesetResolver.forVisionTasks(WASM_URL);
+
+    const options = {
+      runningMode,
+      numHands: 2,
+      minHandDetectionConfidence: 0.55,
+      minHandPresenceConfidence: 0.55,
+      minTrackingConfidence: 0.55
+    };
+
+    try {
+      const tracker = await vision.HandLandmarker.createFromOptions(filesetResolver, {
+        ...options,
+        baseOptions: {
+          modelAssetPath: MODEL_URL,
+          delegate: "GPU"
+        }
+      });
+      window.clearTimeout(timeoutId);
+      return tracker;
+    } catch (error) {
+      console.warn("GPU hand tracking failed, falling back to CPU.", error);
+      const tracker = await vision.HandLandmarker.createFromOptions(filesetResolver, {
+        ...options,
+        baseOptions: {
+          modelAssetPath: MODEL_URL,
+          delegate: "CPU"
+        }
+      });
+      window.clearTimeout(timeoutId);
+      return tracker;
+    }
   } catch (error) {
-    console.warn("GPU hand tracking failed, falling back to CPU.", error);
-    return vision.HandLandmarker.createFromOptions(filesetResolver, {
-      ...options,
-      baseOptions: {
-        modelAssetPath: MODEL_URL,
-        delegate: "CPU"
-      }
-    });
+    window.clearTimeout(timeoutId);
+    throw error;
   }
 }
 
@@ -93,6 +109,34 @@ async function startCamera() {
 
   video.srcObject = stream;
   await video.play();
+  syncStageToCamera();
+  window.addEventListener("resize", fitStageToViewport);
+}
+
+function syncStageToCamera() {
+  const width = video.videoWidth || 1280;
+  const height = video.videoHeight || 720;
+
+  canvas.width = width;
+  canvas.height = height;
+  debugCanvas.width = width;
+  debugCanvas.height = height;
+
+  document.documentElement.style.setProperty("--camera-width", `${width}px`);
+  document.documentElement.style.setProperty("--camera-aspect", `${width} / ${height}`);
+  fitStageToViewport();
+}
+
+function fitStageToViewport() {
+  const width = video.videoWidth || canvas.width || 1280;
+  const height = video.videoHeight || canvas.height || 720;
+  const maxWidth = Math.max(280, window.innerWidth - 36);
+  const occupiedHeight = topbar.offsetHeight + controls.offsetHeight + 72;
+  const maxHeight = Math.max(220, window.innerHeight - occupiedHeight);
+  const scale = Math.min(1, maxWidth / width, maxHeight / height);
+
+  document.documentElement.style.setProperty("--stage-width", `${Math.floor(width * scale)}px`);
+  document.documentElement.style.setProperty("--stage-height", `${Math.floor(height * scale)}px`);
 }
 
 function buildDetectedHands(result) {
@@ -140,29 +184,19 @@ function updateQuads(result) {
 }
 
 function drawDebugOverlay() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const width = Math.floor(debugCanvas.clientWidth * dpr);
-  const height = Math.floor(debugCanvas.clientHeight * dpr);
-
-  if (debugCanvas.width !== width || debugCanvas.height !== height) {
-    debugCanvas.width = width;
-    debugCanvas.height = height;
-  }
-
   const ctx = debugCanvas.getContext("2d");
   ctx.clearRect(0, 0, debugCanvas.width, debugCanvas.height);
   if (!showDebug) return;
 
   ctx.save();
-  ctx.scale(dpr, dpr);
   ctx.strokeStyle = "rgba(113, 246, 214, 0.95)";
   ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
   ctx.lineWidth = 2;
 
   for (const quad of latestQuads) {
     const points = quad.points.map((point) => ({
-      x: (1 - point.x) * debugCanvas.clientWidth,
-      y: point.y * debugCanvas.clientHeight
+      x: (1 - point.x) * debugCanvas.width,
+      y: point.y * debugCanvas.height
     }));
 
     ctx.beginPath();

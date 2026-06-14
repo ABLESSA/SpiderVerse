@@ -211,17 +211,6 @@ function createProgram(gl) {
   return program;
 }
 
-function resizeCanvas(canvas) {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const width = Math.floor(canvas.clientWidth * dpr);
-  const height = Math.floor(canvas.clientHeight * dpr);
-
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
-  }
-}
-
 export class FingerMagicRenderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -263,7 +252,6 @@ export class FingerMagicRenderer {
 
   render({ video, quads }) {
     const gl = this.gl;
-    resizeCanvas(this.canvas);
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.clearColor(0.02, 0.02, 0.03, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
