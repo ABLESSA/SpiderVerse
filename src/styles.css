@@ -3,67 +3,57 @@
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  background: #08080a;
-  color: #f7f6f2;
+  --ink: #f8f4e8;
+  --muted: #b6c5bc;
+  --panel: rgba(14, 18, 22, 0.78);
+  --line: rgba(255, 255, 255, 0.16);
+  --accent: #27f5b9;
+  --accent-2: #ffd84d;
+  --action: #ff7a2f;
+  background: #07090b;
+  color: var(--ink);
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+  min-height: 100%;
+}
+
+body {
   min-height: 100vh;
   overflow: auto;
   background:
-    radial-gradient(circle at 20% 10%, rgba(40, 136, 255, 0.24), transparent 28rem),
-    radial-gradient(circle at 90% 90%, rgba(255, 70, 127, 0.2), transparent 24rem),
-    #08080a;
+    linear-gradient(135deg, rgba(39, 245, 185, 0.16), transparent 34%),
+    linear-gradient(315deg, rgba(255, 216, 77, 0.14), transparent 30%),
+    repeating-linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.045) 0,
+      rgba(255, 255, 255, 0.045) 1px,
+      transparent 1px,
+      transparent 18px
+    ),
+    #07090b;
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
 .app-shell {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   padding: 18px;
-}
-
-.stage {
-  position: relative;
-  width: var(--stage-width, min(1180px, calc(100vw - 36px)));
-  height: var(--stage-height, 664px);
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 8px;
-  background: #111;
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.46);
-}
-
-#camera {
-  display: none;
-}
-
-#output {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-#debug-canvas {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
 }
 
 .topbar,
@@ -79,121 +69,214 @@ input {
   flex-wrap: wrap;
 }
 
-.controls {
-  align-items: flex-end;
-  justify-content: space-between;
-}
-
 .eyebrow {
-  margin: 0 0 5px;
-  color: #71f6d6;
+  margin: 0 0 4px;
+  color: var(--accent);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0;
   text-transform: uppercase;
 }
 
 h1 {
+  max-width: 780px;
   margin: 0;
-  font-size: clamp(24px, 3.2vw, 48px);
+  color: #fffaf0;
+  font-size: clamp(28px, 4vw, 48px);
   line-height: 1;
-  text-shadow: 0 2px 22px rgba(0, 0, 0, 0.55);
+  letter-spacing: 0;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
 }
 
 .status {
-  max-width: min(420px, 48vw);
+  max-width: min(430px, 48vw);
+  min-height: 40px;
   margin: 0;
   padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(39, 245, 185, 0.28);
   border-radius: 8px;
-  background: rgba(8, 8, 10, 0.72);
-  color: #fff7dc;
+  background: rgba(7, 9, 11, 0.82);
+  color: #fff7d1;
   font-size: 14px;
   line-height: 1.35;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(14px);
 }
 
-.stage .status,
-.stage .controls,
-.stage .topbar {
+.stage {
+  position: relative;
+  width: var(--stage-width, min(1180px, calc(100vw - 36px)));
+  height: var(--stage-height, 664px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(39, 245, 185, 0.16), rgba(255, 122, 47, 0.12)),
+    #101318;
+  box-shadow:
+    0 28px 82px rgba(0, 0, 0, 0.58),
+    0 0 0 4px rgba(255, 255, 255, 0.04);
+}
+
+#camera {
   display: none;
+}
+
+#output {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#debug-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.stage-badge {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 3;
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.stage-badge span {
+  width: 34px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--accent-2);
+  box-shadow: 0 0 16px rgba(255, 216, 77, 0.62);
+}
+
+.stage-badge span:nth-child(2) {
+  background: var(--accent);
+}
+
+.stage-badge span:nth-child(3) {
+  background: var(--action);
+}
+
+.controls {
+  align-items: flex-end;
 }
 
 .effect-pickers {
   display: grid;
   grid-template-columns: repeat(3, minmax(150px, 1fr));
   gap: 10px;
-  width: min(760px, calc(100% - 110px));
+  width: min(780px, calc(100% - 116px));
 }
 
 .effect-picker {
   display: grid;
   gap: 6px;
+  min-width: 0;
   padding: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(8, 8, 10, 0.7);
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(14px);
 }
 
 .effect-picker label {
-  color: #fff7dc;
+  overflow: hidden;
+  color: #f9ecc7;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .effect-picker select {
   width: 100%;
   min-height: 36px;
+  padding: 0 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 8px;
-  background: rgba(10, 12, 15, 0.92);
-  color: #f7f6f2;
-  font: inherit;
+  background: rgba(8, 10, 12, 0.94);
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
 }
 
-.debug-toggle {
-  min-height: 42px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
-  background: rgba(10, 12, 15, 0.72);
-  color: #f7f6f2;
-  backdrop-filter: blur(14px);
+.effect-picker select:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(39, 245, 185, 0.22);
 }
 
 .debug-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font-weight: 800;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
 }
 
 .debug-toggle input {
-  width: 16px;
-  height: 16px;
-  accent-color: #71f6d6;
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
-@media (max-width: 720px) {
+.debug-toggle:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(39, 245, 185, 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 760px) {
   .app-shell {
     justify-content: flex-start;
     padding: 12px;
   }
 
-  .stage {
-    width: var(--stage-width, 100%);
-    height: var(--stage-height, auto);
-  }
-
   .topbar {
     align-items: flex-start;
     flex-direction: column;
+    width: 100%;
+  }
+
+  h1 {
+    font-size: 34px;
+    line-height: 1;
   }
 
   .status {
     max-width: 100%;
+  }
+
+  .stage {
+    width: var(--stage-width, 100%);
+    height: var(--stage-height, auto);
   }
 
   .controls {
@@ -205,5 +288,9 @@ h1 {
   .effect-pickers {
     grid-template-columns: 1fr;
     width: 100%;
+  }
+
+  .effect-picker label {
+    white-space: normal;
   }
 }

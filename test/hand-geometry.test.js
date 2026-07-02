@@ -5,6 +5,7 @@ import {
   FINGERTIPS,
   buildFingerPairs,
   buildFingerQuads,
+  buildMagicRegions,
   normalizeHands,
   smoothPoints
 } from "../src/hand-geometry.js";
@@ -77,6 +78,25 @@ test("builds three adjacent quadrilateral regions from four finger pairs", () =>
     pairs[0].right,
     pairs[1].right,
     pairs[1].left
+  ]);
+});
+
+test("builds the three requested magic regions directly from two hands", () => {
+  const left = makeHand("Left", 0.2);
+  const right = makeHand("Right", 0.7);
+
+  const regions = buildMagicRegions(left, right);
+
+  assert.deepEqual(
+    regions.map((region) => region.name),
+    ["thumb-index", "index-middle", "middle-pinky"]
+  );
+  assert.equal(regions.every((region) => region.points.length === 4), true);
+  assert.deepEqual(regions[2].points, [
+    left.landmarks[FINGERTIPS.middle],
+    right.landmarks[FINGERTIPS.middle],
+    right.landmarks[FINGERTIPS.pinky],
+    left.landmarks[FINGERTIPS.pinky]
   ]);
 });
 

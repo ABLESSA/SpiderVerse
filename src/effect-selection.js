@@ -3,17 +3,19 @@ export const EFFECTS = Object.freeze([
   { id: "chromaticPunch", label: "Chromatic" },
   { id: "inkBurst", label: "Ink Burst" },
   { id: "speedLines", label: "Speed Lines" },
-  { id: "posterHeat", label: "Poster Heat" },
-  { id: "mangaScreen", label: "Manga Screen" },
-  { id: "noirInk", label: "Noir Ink" },
-  { id: "comicPanel", label: "Comic Panel" },
-  { id: "popArt", label: "Pop Art" }
+  { id: "posterHeat", label: "Poster Heat" }
 ]);
 
 export const DEFAULT_REGION_EFFECTS = Object.freeze([
   "halftonePop",
   "chromaticPunch",
   "inkBurst"
+]);
+
+export const REGION_LABELS = Object.freeze([
+  "Thumb to Index",
+  "Index to Middle",
+  "Middle to Pinky"
 ]);
 
 export function createRegionEffectState() {
@@ -45,4 +47,22 @@ export function setRegionEffect(state, regionIndex, effectId) {
 
   next[regionIndex] = effectId;
   return next;
+}
+
+export function createRegionPickerModels(state) {
+  if (!Array.isArray(state) || state.length !== REGION_LABELS.length) {
+    throw new Error("Region effect state must contain exactly three effects.");
+  }
+
+  return REGION_LABELS.map((label, index) => {
+    getEffectIndex(state[index]);
+
+    return {
+      id: `region-effect-${index}`,
+      label,
+      regionIndex: index,
+      selectedEffectId: state[index],
+      options: EFFECTS
+    };
+  });
 }

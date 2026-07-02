@@ -7,6 +7,12 @@ export const FINGERTIPS = Object.freeze({
 
 export const FINGER_NAMES = Object.freeze(Object.keys(FINGERTIPS));
 
+export const REGION_NAMES = Object.freeze([
+  "thumb-index",
+  "index-middle",
+  "middle-pinky"
+]);
+
 function centerX(hand) {
   if (!hand?.landmarks?.length) return 0;
   return hand.landmarks.reduce((sum, point) => sum + point.x, 0) / hand.landmarks.length;
@@ -33,7 +39,7 @@ export function normalizeHands(hands) {
     return { left: labeledLeft, right: labeledRight, status: "ready" };
   }
 
-  const sorted = candidates.toSorted((a, b) => centerX(a) - centerX(b));
+  const sorted = candidates.slice().sort((a, b) => centerX(a) - centerX(b));
   return { left: sorted[0], right: sorted[1], status: "ready" };
 }
 
@@ -68,6 +74,10 @@ export function buildFingerQuads(pairs) {
   });
 }
 
+export function buildMagicRegions(leftHand, rightHand) {
+  return buildFingerQuads(buildFingerPairs(leftHand, rightHand));
+}
+
 export function smoothPoints(previous, next, amount = 0.35) {
   if (!previous) return next;
 
@@ -76,13 +86,17 @@ export function smoothPoints(previous, next, amount = 0.35) {
       const oldPoint = previous[key];
       if (!oldPoint) return [key, point];
 
-      return [
-        key,
-        {
-          x: oldPoint.x + (point.x - oldPoint.x) * amount,
-          y: oldPoint.y + (point.y - oldPoint.y) * amount
-        }
-      ];
+      const smoothedPoint = {
+        ...point,
+        x: oldPoint.x + (point.x - oldPoint.x) * amount,
+        y: oldPoint.y + (point.y - oldPoint.y) * amount
+      };
+
+      if (typeof oldPoint.z === "number" && typeof point.z === "number") {
+        smoothedPoint.z = oldPoint.z + (point.z - oldPoint.z) * amount;
+      }
+
+      return [key, smoothedPoint];
     })
   );
 }

@@ -115,48 +115,6 @@ vec3 posterHeat(vec2 uv) {
   return floor(heatColor * 5.0) / 4.0 + vec3(dots * 0.14) - vec3(edge * 0.24, edge * 0.12, 0.0);
 }
 
-vec3 mangaScreen(vec2 uv) {
-  vec3 color = sampleVideo(uv);
-  float value = luminance(color);
-  float dotsFine = halftone(uv + vec2(0.01 * sin(u_time), 0.0), 96.0);
-  float dotsLarge = halftone(uv * vec2(0.72, 1.18), 38.0);
-  float hatch = diagonalLines(vec2(uv.x * 1.4, uv.y), 72.0, 0.018) * (1.0 - value);
-  float ink = max(edgeMask(uv), max(dotsFine * (1.0 - value), dotsLarge * 0.38));
-  vec3 paper = vec3(0.98, 0.96, 0.9);
-  return mix(paper, vec3(0.03), clamp(ink + hatch * 0.45, 0.0, 1.0));
-}
-
-vec3 noirInk(vec2 uv) {
-  vec3 color = sampleVideo(uv);
-  float value = luminance(color);
-  float edge = edgeMask(uv);
-  float threshold = smoothstep(0.36, 0.62, value + sin((uv.x - uv.y) * 110.0) * 0.035);
-  vec3 ink = mix(vec3(0.0, 0.0, 0.015), vec3(0.92, 0.9, 0.82), threshold);
-  return mix(ink, vec3(0.0), edge * 0.9);
-}
-
-vec3 comicPanel(vec2 uv) {
-  vec3 color = sampleVideo(uv);
-  vec2 grid = abs(fract(uv * vec2(5.0, 3.0)) - 0.5);
-  float panelLine = 1.0 - smoothstep(0.018, 0.034, min(grid.x, grid.y));
-  float burst = diagonalLines(uv + vec2(sin(u_time) * 0.015, 0.0), 34.0, 0.02);
-  vec3 poster = floor(color * 4.0) / 3.0;
-  vec3 panelColor = poster * vec3(1.18, 0.9, 0.72) + vec3(burst * 0.18, burst * 0.08, 0.0);
-  return mix(panelColor, vec3(0.02), max(panelLine, edgeMask(uv) * 0.55));
-}
-
-vec3 popArt(vec2 uv) {
-  vec3 color = sampleVideo(uv);
-  float value = luminance(color);
-  float dots = halftone(uv + vec2(float(u_region) * 0.04, u_time * 0.015), 64.0);
-  vec3 a = vec3(1.0, 0.05, 0.28);
-  vec3 b = vec3(0.0, 0.72, 1.0);
-  vec3 c = vec3(1.0, 0.92, 0.05);
-  vec3 d = vec3(0.08, 0.02, 0.16);
-  vec3 palette = mix(mix(a, b, step(0.32, value)), mix(c, d, step(0.78, value)), step(0.56, value));
-  return mix(palette, vec3(0.02), edgeMask(uv) * 0.78) + dots * vec3(0.12);
-}
-
 void main() {
   vec3 color = sampleVideo(v_uv);
 
@@ -169,16 +127,8 @@ void main() {
       color = inkBurst(v_uv);
     } else if (u_mode == 3) {
       color = speedLines(v_uv);
-    } else if (u_mode == 4) {
-      color = posterHeat(v_uv);
-    } else if (u_mode == 5) {
-      color = mangaScreen(v_uv);
-    } else if (u_mode == 6) {
-      color = noirInk(v_uv);
-    } else if (u_mode == 7) {
-      color = comicPanel(v_uv);
     } else {
-      color = popArt(v_uv);
+      color = posterHeat(v_uv);
     }
   }
 

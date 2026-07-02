@@ -3,23 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Finger Magic</title>
+    <meta
+      name="description"
+      content="Finger Magic Lite is a browser camera comic-effect playground powered by MediaPipe hand landmarks."
+    />
+    <title>Finger Magic Lite</title>
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <div class="topbar">
-          <div>
-            <p class="eyebrow">Finger Magic</p>
-            <h1>Camera shader playground</h1>
-          </div>
-          <p id="status" class="status" role="status">Loading hand tracker...</p>
+        <div>
+          <p class="eyebrow">Finger Magic Lite</p>
+          <h1>Comic zones between your fingers</h1>
+        </div>
+        <p id="status" class="status" role="status">Loading hand tracker...</p>
       </div>
 
       <section class="stage" id="stage" aria-label="Live finger magic camera">
         <video id="camera" playsinline muted></video>
         <canvas id="output"></canvas>
         <canvas id="debug-canvas" aria-hidden="true"></canvas>
+        <div class="stage-badge" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
       </section>
 
       <div class="controls" aria-label="Region effect controls">

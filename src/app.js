@@ -7,8 +7,8 @@ import {
   unflattenPairs
 } from "./hand-geometry.js";
 import {
-  EFFECTS,
   createRegionEffectState,
+  createRegionPickerModels,
   getEffectIndex,
   setRegionEffect
 } from "./effect-selection.js";
@@ -21,7 +21,6 @@ const MEDIAPIPE_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${M
 const WASM_URL = `${MEDIAPIPE_BASE}/wasm`;
 
 const video = document.querySelector("#camera");
-const stage = document.querySelector("#stage");
 const topbar = document.querySelector(".topbar");
 const controls = document.querySelector(".controls");
 const canvas = document.querySelector("#output");
@@ -32,7 +31,6 @@ const debugToggle = document.querySelector("#debug-toggle");
 
 let renderer;
 let handLandmarker;
-let runningMode = "VIDEO";
 let regionEffects = createRegionEffectState();
 let showDebug = false;
 let lastVideoTime = -1;
@@ -49,16 +47,17 @@ function getHandLabel(result, index) {
 }
 
 async function loadHandTracker() {
-  const timeoutId = window.setTimeout(() => {
-    setStatus("Hand tracker is still loading. Check network access to jsDelivr and Google model files.");
+  const loadingTimeout = window.setTimeout(() => {
+    setStatus("Still loading hand tracker. Confirm http://127.0.0.1:4173/ is running, then refresh.");
   }, 8000);
-
   try {
     const vision = await import(`${MEDIAPIPE_BASE}/vision_bundle.mjs`);
     const filesetResolver = await vision.FilesetResolver.forVisionTasks(WASM_URL);
-
+    const baseOptions = {
+      modelAssetPath: MODEL_URL
+    };
     const options = {
-      runningMode,
+      runningMode: "VIDEO",
       numHands: 2,
       minHandDetectionConfidence: 0.55,
       minHandPresenceConfidence: 0.55,
@@ -66,30 +65,25 @@ async function loadHandTracker() {
     };
 
     try {
-      const tracker = await vision.HandLandmarker.createFromOptions(filesetResolver, {
+      return await vision.HandLandmarker.createFromOptions(filesetResolver, {
         ...options,
         baseOptions: {
-          modelAssetPath: MODEL_URL,
+          ...baseOptions,
           delegate: "GPU"
         }
       });
-      window.clearTimeout(timeoutId);
-      return tracker;
     } catch (error) {
       console.warn("GPU hand tracking failed, falling back to CPU.", error);
-      const tracker = await vision.HandLandmarker.createFromOptions(filesetResolver, {
+      return await vision.HandLandmarker.createFromOptions(filesetResolver, {
         ...options,
         baseOptions: {
-          modelAssetPath: MODEL_URL,
+          ...baseOptions,
           delegate: "CPU"
         }
       });
-      window.clearTimeout(timeoutId);
-      return tracker;
     }
-  } catch (error) {
-    window.clearTimeout(timeoutId);
-    throw error;
+  } finally {
+    window.clearTimeout(loadingTimeout);
   }
 }
 
@@ -122,7 +116,6 @@ function syncStageToCamera() {
   debugCanvas.width = width;
   debugCanvas.height = height;
 
-  document.documentElement.style.setProperty("--camera-width", `${width}px`);
   document.documentElement.style.setProperty("--camera-aspect", `${width} / ${height}`);
   fitStageToViewport();
 }
@@ -130,9 +123,9 @@ function syncStageToCamera() {
 function fitStageToViewport() {
   const width = video.videoWidth || canvas.width || 1280;
   const height = video.videoHeight || canvas.height || 720;
-  const maxWidth = Math.max(280, window.innerWidth - 36);
-  const occupiedHeight = topbar.offsetHeight + controls.offsetHeight + 72;
-  const maxHeight = Math.max(220, window.innerHeight - occupiedHeight);
+  const maxWidth = Math.max(300, window.innerWidth - 36);
+  const occupiedHeight = topbar.offsetHeight + controls.offsetHeight + 112;
+  const maxHeight = Math.max(240, window.innerHeight - occupiedHeight);
   const scale = Math.min(1, maxWidth / width, maxHeight / height);
 
   document.documentElement.style.setProperty("--stage-width", `${Math.floor(width * scale)}px`);
@@ -146,28 +139,29 @@ function buildDetectedHands(result) {
   }));
 }
 
+function clearTracking(message) {
+  latestQuads = [];
+  previousFingerPoints = null;
+  setStatus(message);
+}
+
 function updateQuads(result) {
   const hands = buildDetectedHands(result);
   const normalized = normalizeHands(hands);
 
   if (normalized.status === "no-hands") {
-    latestQuads = [];
-    previousFingerPoints = null;
-    setStatus("Show both hands to begin.");
+    clearTracking("Show both hands to begin.");
     return;
   }
 
   if (normalized.status === "one-hand") {
-    latestQuads = [];
-    previousFingerPoints = null;
-    setStatus("One hand found. Add your other hand to form the magic zones.");
+    clearTracking("One hand found. Add your other hand to form the magic zones.");
     return;
   }
 
   const pairs = buildFingerPairs(normalized.left, normalized.right);
   if (pairs.length < 4) {
-    latestQuads = [];
-    setStatus("Keep thumb, index, middle, and pinky fingertips visible.");
+    clearTracking("Keep thumb, index, middle, and pinky fingertips visible.");
     return;
   }
 
@@ -180,7 +174,7 @@ function updateQuads(result) {
     effectId: regionEffects[index],
     effectIndex: getEffectIndex(regionEffects[index])
   }));
-  setStatus("Two hands locked. Three comic effects are active at once.");
+  setStatus("Two hands locked. Three comic effects are live.");
 }
 
 function drawDebugOverlay() {
@@ -189,11 +183,11 @@ function drawDebugOverlay() {
   if (!showDebug) return;
 
   ctx.save();
-  ctx.strokeStyle = "rgba(113, 246, 214, 0.95)";
-  ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
   ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(39, 245, 185, 0.95)";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.96)";
 
-  for (const quad of latestQuads) {
+  latestQuads.forEach((quad, index) => {
     const points = quad.points.map((point) => ({
       x: (1 - point.x) * debugCanvas.width,
       y: point.y * debugCanvas.height
@@ -201,25 +195,32 @@ function drawDebugOverlay() {
 
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
-    for (const point of points.slice(1)) ctx.lineTo(point.x, point.y);
+    points.slice(1).forEach((point) => ctx.lineTo(point.x, point.y));
     ctx.closePath();
     ctx.stroke();
 
-    for (const point of points) {
+    const center = points.reduce(
+      (sum, point) => ({ x: sum.x + point.x / points.length, y: sum.y + point.y / points.length }),
+      { x: 0, y: 0 }
+    );
+
+    ctx.font = "700 16px Inter, system-ui, sans-serif";
+    ctx.fillText(String(index + 1), center.x - 4, center.y + 5);
+
+    points.forEach((point) => {
       ctx.beginPath();
       ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
       ctx.fill();
-    }
-  }
+    });
+  });
 
   ctx.restore();
 }
 
-function predictFrame() {
+function renderFrame() {
   if (video.currentTime !== lastVideoTime && handLandmarker) {
     lastVideoTime = video.currentTime;
-    const result = handLandmarker.detectForVideo(video, performance.now());
-    updateQuads(result);
+    updateQuads(handLandmarker.detectForVideo(video, performance.now()));
   }
 
   renderer.render({
@@ -228,44 +229,48 @@ function predictFrame() {
   });
   drawDebugOverlay();
 
-  requestAnimationFrame(predictFrame);
+  requestAnimationFrame(renderFrame);
+}
+
+function updateExistingQuadEffects() {
+  latestQuads = latestQuads.map((quad, index) => ({
+    ...quad,
+    effectId: regionEffects[index],
+    effectIndex: getEffectIndex(regionEffects[index])
+  }));
 }
 
 function bindControls() {
   effectPickers.innerHTML = "";
-  const regionLabels = ["Thumb -> Index", "Index -> Middle", "Middle -> Pinky"];
   const selects = [];
 
-  regionEffects.forEach((effectId, regionIndex) => {
+  createRegionPickerModels(regionEffects).forEach((model) => {
     const wrapper = document.createElement("div");
     wrapper.className = "effect-picker";
 
     const label = document.createElement("label");
-    label.htmlFor = `region-effect-${regionIndex}`;
-    label.textContent = regionLabels[regionIndex];
+    label.htmlFor = model.id;
+    label.textContent = model.label;
 
     const select = document.createElement("select");
-    select.id = `region-effect-${regionIndex}`;
-    select.dataset.region = String(regionIndex);
+    select.id = model.id;
+    select.dataset.region = String(model.regionIndex);
+    select.setAttribute("aria-label", `${model.label} effect`);
 
-    for (const effect of EFFECTS) {
+    model.options.forEach((effect) => {
       const option = document.createElement("option");
       option.value = effect.id;
       option.textContent = effect.label;
-      option.selected = effect.id === effectId;
+      option.selected = effect.id === model.selectedEffectId;
       select.append(option);
-    }
+    });
 
     select.addEventListener("change", () => {
-      regionEffects = setRegionEffect(regionEffects, regionIndex, select.value);
+      regionEffects = setRegionEffect(regionEffects, model.regionIndex, select.value);
       selects.forEach((item, index) => {
         item.value = regionEffects[index];
       });
-      latestQuads = latestQuads.map((quad, index) => ({
-        ...quad,
-        effectId: regionEffects[index],
-        effectIndex: getEffectIndex(regionEffects[index])
-      }));
+      updateExistingQuadEffects();
     });
 
     wrapper.append(label, select);
@@ -283,19 +288,14 @@ async function main() {
     bindControls();
     renderer = new FingerMagicRenderer(canvas);
 
-    setStatus("Loading hand tracker...");
+    setStatus("Loading MediaPipe hand tracker...");
     handLandmarker = await loadHandTracker();
 
     setStatus("Allow camera access to start.");
     await startCamera();
 
-    if (runningMode !== "VIDEO") {
-      runningMode = "VIDEO";
-      await handLandmarker.setOptions({ runningMode });
-    }
-
     setStatus("Show both hands to begin.");
-    requestAnimationFrame(predictFrame);
+    requestAnimationFrame(renderFrame);
   } catch (error) {
     console.error(error);
     latestQuads = [];
@@ -305,7 +305,7 @@ async function main() {
       return;
     }
 
-    setStatus(error?.message || "Something went wrong while starting Finger Magic.");
+    setStatus(error?.message || "Something went wrong while starting Finger Magic Lite.");
   }
 }
 
