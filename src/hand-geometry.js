@@ -6,6 +6,16 @@ export const FINGERTIPS = Object.freeze({
 });
 
 export const FINGER_NAMES = Object.freeze(Object.keys(FINGERTIPS));
+const THUMB_INDEX_ONLY_NAMES = Object.freeze(["thumb", "index"]);
+const THUMB_INDEX_PINCH_THRESHOLD = 0.075;
+const THUMB_INDEX_LOOSE_CLUSTER_SPAN = 0.2;
+const EXTENSION_JOINTS = Object.freeze({
+  thumb: { pip: 3, tip: 4 },
+  index: { pip: 6, tip: 8 },
+  middle: { pip: 10, tip: 12 },
+  ring: { pip: 14, tip: 16 },
+  pinky: { pip: 18, tip: 20 }
+});
 
 export const REGION_NAMES = Object.freeze([
   "thumb-index",
@@ -54,6 +64,122 @@ export function buildFingerPairs(leftHand, rightHand) {
     if (!left || !right) return [];
     return [{ name, left, right }];
   });
+}
+
+function distanceSquared(a, b) {
+  if (!a || !b) return 0;
+  const zDelta = (a.z ?? 0) - (b.z ?? 0);
+  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + zDelta ** 2;
+}
+
+function distance2d(a, b) {
+  if (!a || !b) return Number.POSITIVE_INFINITY;
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function isFingerExtended(hand, name) {
+  const joints = EXTENSION_JOINTS[name];
+  const wrist = hand?.landmarks?.[0];
+  const pip = hand?.landmarks?.[joints?.pip];
+  const tip = hand?.landmarks?.[joints?.tip];
+
+  return distanceSquared(wrist, tip) > distanceSquared(wrist, pip);
+}
+
+function hasThumbIndexOnlyPoseForHand(hand) {
+  return (
+    isFingerExtended(hand, "thumb") &&
+    isFingerExtended(hand, "index") &&
+    !isFingerExtended(hand, "middle") &&
+    !isFingerExtended(hand, "ring") &&
+    !isFingerExtended(hand, "pinky")
+  );
+}
+
+export function hasThumbIndexOnlyPose(leftHand, rightHand) {
+  return hasThumbIndexOnlyPoseForHand(leftHand) && hasThumbIndexOnlyPoseForHand(rightHand);
+}
+
+function isThumbIndexPinched(hand, threshold = THUMB_INDEX_PINCH_THRESHOLD) {
+  const thumb = hand?.landmarks?.[FINGERTIPS.thumb];
+  const index = hand?.landmarks?.[FINGERTIPS.index];
+  return distance2d(thumb, index) <= threshold;
+}
+
+function thumbIndexTips(leftHand, rightHand) {
+  return [
+    leftHand?.landmarks?.[FINGERTIPS.thumb],
+    leftHand?.landmarks?.[FINGERTIPS.index],
+    rightHand?.landmarks?.[FINGERTIPS.thumb],
+    rightHand?.landmarks?.[FINGERTIPS.index]
+  ];
+}
+
+function areTipsRelativelyClose(points, maxSpan = THUMB_INDEX_LOOSE_CLUSTER_SPAN) {
+  if (points.some((point) => !point)) return false;
+
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+
+  return Math.max(...xs) - Math.min(...xs) <= maxSpan && Math.max(...ys) - Math.min(...ys) <= maxSpan;
+}
+
+export function hasThumbIndexClusterPose(leftHand, rightHand) {
+  if (!hasThumbIndexOnlyPose(leftHand, rightHand)) return false;
+
+  return (
+    (isThumbIndexPinched(leftHand) && isThumbIndexPinched(rightHand)) ||
+    areTipsRelativelyClose(thumbIndexTips(leftHand, rightHand))
+  );
+}
+
+function midpoint(a, b) {
+  return {
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+    z: ((a.z ?? 0) + (b.z ?? 0)) / 2
+  };
+}
+
+export function buildThumbIndexFilterFrame(leftHand, rightHand) {
+  const leftThumb = leftHand?.landmarks?.[FINGERTIPS.thumb];
+  const leftIndex = leftHand?.landmarks?.[FINGERTIPS.index];
+  const rightThumb = rightHand?.landmarks?.[FINGERTIPS.thumb];
+  const rightIndex = rightHand?.landmarks?.[FINGERTIPS.index];
+
+  if (!leftThumb || !leftIndex || !rightThumb || !rightIndex) return null;
+
+  const leftMidpoint = midpoint(leftThumb, leftIndex);
+  const rightMidpoint = midpoint(rightThumb, rightIndex);
+
+  return {
+    name: "thumb-index-frame",
+    points: [
+      leftMidpoint,
+      { x: rightMidpoint.x, y: leftMidpoint.y, z: (leftMidpoint.z + rightMidpoint.z) / 2 },
+      rightMidpoint,
+      { x: leftMidpoint.x, y: rightMidpoint.y, z: (leftMidpoint.z + rightMidpoint.z) / 2 }
+    ]
+  };
+}
+
+export function buildLockedThumbIndexFilterFrame(leftHand, rightHand) {
+  return buildThumbIndexFilterFrame(leftHand, rightHand);
+}
+
+export function buildActiveFingerPairs(leftHand, rightHand) {
+  const pairs = buildFingerPairs(leftHand, rightHand);
+  if (!hasThumbIndexOnlyPose(leftHand, rightHand)) return pairs;
+
+  return pairs.filter((pair) => THUMB_INDEX_ONLY_NAMES.includes(pair.name));
+}
+
+export function buildActiveMagicRegions(leftHand, rightHand) {
+  if (hasThumbIndexClusterPose(leftHand, rightHand)) {
+    return [buildThumbIndexFilterFrame(leftHand, rightHand)].filter(Boolean);
+  }
+
+  return buildFingerQuads(buildActiveFingerPairs(leftHand, rightHand));
 }
 
 export function buildFingerQuads(pairs) {

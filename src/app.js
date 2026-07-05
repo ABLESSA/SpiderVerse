@@ -1,10 +1,8 @@
 import {
-  buildFingerPairs,
-  buildFingerQuads,
-  flattenPairs,
+  buildActiveMagicRegions,
+  buildLockedThumbIndexFilterFrame,
   normalizeHands,
-  smoothPoints,
-  unflattenPairs
+  smoothPoints
 } from "./hand-geometry.js";
 import {
   createRegionEffectState,
@@ -35,7 +33,8 @@ let regionEffects = createRegionEffectState();
 let showDebug = false;
 let lastVideoTime = -1;
 let latestQuads = [];
-let previousFingerPoints = null;
+let previousRegionPoints = null;
+let thumbIndexFrameLocked = false;
 
 function setStatus(message) {
   statusEl.textContent = message;
@@ -141,8 +140,24 @@ function buildDetectedHands(result) {
 
 function clearTracking(message) {
   latestQuads = [];
-  previousFingerPoints = null;
+  previousRegionPoints = null;
+  thumbIndexFrameLocked = false;
   setStatus(message);
+}
+
+function flattenRegions(regions) {
+  return Object.fromEntries(
+    regions.flatMap((region) =>
+      region.points.map((point, index) => [`${region.name}-${index}`, point])
+    )
+  );
+}
+
+function unflattenRegions(regions, points) {
+  return regions.map((region) => ({
+    ...region,
+    points: region.points.map((point, index) => points[`${region.name}-${index}`] ?? point)
+  }));
 }
 
 function updateQuads(result) {
@@ -159,22 +174,35 @@ function updateQuads(result) {
     return;
   }
 
-  const pairs = buildFingerPairs(normalized.left, normalized.right);
-  if (pairs.length < 4) {
+  let regions = thumbIndexFrameLocked
+    ? [buildLockedThumbIndexFilterFrame(normalized.left, normalized.right)].filter(Boolean)
+    : buildActiveMagicRegions(normalized.left, normalized.right);
+
+  if (regions.length < 1) {
     clearTracking("Keep thumb, index, middle, and pinky fingertips visible.");
     return;
   }
 
-  const currentPoints = flattenPairs(pairs);
-  const smoothedPoints = smoothPoints(previousFingerPoints, currentPoints, 0.38);
-  previousFingerPoints = smoothedPoints;
+  if (regions[0]?.name === "thumb-index-frame") {
+    thumbIndexFrameLocked = true;
+  }
 
-  latestQuads = buildFingerQuads(unflattenPairs(pairs, smoothedPoints)).map((quad, index) => ({
+  const currentPoints = flattenRegions(regions);
+  const smoothedPoints = smoothPoints(previousRegionPoints, currentPoints, 0.38);
+  previousRegionPoints = smoothedPoints;
+
+  latestQuads = unflattenRegions(regions, smoothedPoints).map((quad, index) => ({
     ...quad,
-    effectId: regionEffects[index],
-    effectIndex: getEffectIndex(regionEffects[index])
+    effectId: quad.name === "thumb-index-frame" ? regionEffects[0] : regionEffects[index],
+    effectIndex: getEffectIndex(quad.name === "thumb-index-frame" ? regionEffects[0] : regionEffects[index])
   }));
-  setStatus("Two hands locked. Three comic effects are live.");
+  setStatus(
+    latestQuads[0]?.name === "thumb-index-frame"
+      ? "Thumb-index frame locked. Filter frame is live."
+      : latestQuads.length === 1
+      ? "Thumb and index locked. Single space effect is live."
+      : "Two hands locked. Three comic effects are live."
+  );
 }
 
 function drawDebugOverlay() {
