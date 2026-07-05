@@ -1,15 +1,18 @@
 import {
   buildActiveMagicRegions,
   buildLockedThumbIndexFilterFrame,
+  isThumbIndexPinched,
   normalizeHands,
   smoothPoints
 } from "./hand-geometry.js";
 import {
+  EFFECTS,
   createRegionEffectState,
   createRegionPickerModels,
   getEffectIndex,
   setRegionEffect
 } from "./effect-selection.js";
+import { createFrameModeState, updateFrameModeState } from "./frame-mode-state.js";
 import { FingerMagicRenderer } from "./webgl-renderer.js";
 
 const MODEL_URL =
@@ -35,6 +38,7 @@ let lastVideoTime = -1;
 let latestQuads = [];
 let previousRegionPoints = null;
 let thumbIndexFrameLocked = false;
+let frameModeState = createFrameModeState(regionEffects);
 
 function setStatus(message) {
   statusEl.textContent = message;
@@ -142,6 +146,7 @@ function clearTracking(message) {
   latestQuads = [];
   previousRegionPoints = null;
   thumbIndexFrameLocked = false;
+  frameModeState = createFrameModeState(regionEffects);
   setStatus(message);
 }
 
@@ -191,13 +196,36 @@ function updateQuads(result) {
   const smoothedPoints = smoothPoints(previousRegionPoints, currentPoints, 0.38);
   previousRegionPoints = smoothedPoints;
 
-  latestQuads = unflattenRegions(regions, smoothedPoints).map((quad, index) => ({
+  const smoothedRegions = unflattenRegions(regions, smoothedPoints);
+  const liveFrame = smoothedRegions.find((quad) => quad.name === "thumb-index-frame");
+
+  if (thumbIndexFrameLocked) {
+    frameModeState = updateFrameModeState(frameModeState, {
+      liveFrame,
+      bothHandsPinched: isThumbIndexPinched(normalized.left) && isThumbIndexPinched(normalized.right),
+      regionEffects,
+      allEffectIds: EFFECTS.map((effect) => effect.id)
+    });
+  }
+
+  const frozenQuads = frameModeState.frozenFrames.map((quad) => ({
     ...quad,
-    effectId: quad.name === "thumb-index-frame" ? regionEffects[0] : regionEffects[index],
-    effectIndex: getEffectIndex(quad.name === "thumb-index-frame" ? regionEffects[0] : regionEffects[index])
+    effectIndex: getEffectIndex(quad.effectId)
   }));
+
+  latestQuads = [
+    ...frozenQuads,
+    ...smoothedRegions.map((quad, index) => {
+      const effectId = quad.name === "thumb-index-frame" ? frameModeState.liveEffectId : regionEffects[index];
+      return {
+        ...quad,
+        effectId,
+        effectIndex: getEffectIndex(effectId)
+      };
+    })
+  ];
   setStatus(
-    latestQuads[0]?.name === "thumb-index-frame"
+    liveFrame
       ? "Thumb-index frame locked. Filter frame is live."
       : latestQuads.length === 1
       ? "Thumb and index locked. Single space effect is live."
@@ -261,11 +289,29 @@ function renderFrame() {
 }
 
 function updateExistingQuadEffects() {
-  latestQuads = latestQuads.map((quad, index) => ({
-    ...quad,
-    effectId: regionEffects[index],
-    effectIndex: getEffectIndex(regionEffects[index])
-  }));
+  frameModeState = {
+    ...frameModeState,
+    liveEffectId: regionEffects[0]
+  };
+  latestQuads = latestQuads.map((quad, index) => {
+    if (quad.name === "thumb-index-frame") {
+      return {
+        ...quad,
+        effectId: frameModeState.liveEffectId,
+        effectIndex: getEffectIndex(frameModeState.liveEffectId)
+      };
+    }
+
+    if (quad.name?.startsWith("frozen-thumb-index-frame-")) {
+      return quad;
+    }
+
+    return {
+      ...quad,
+      effectId: regionEffects[index],
+      effectIndex: getEffectIndex(regionEffects[index])
+    };
+  });
 }
 
 function bindControls() {

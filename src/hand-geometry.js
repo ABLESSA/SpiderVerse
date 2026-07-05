@@ -100,7 +100,7 @@ export function hasThumbIndexOnlyPose(leftHand, rightHand) {
   return hasThumbIndexOnlyPoseForHand(leftHand) && hasThumbIndexOnlyPoseForHand(rightHand);
 }
 
-function isThumbIndexPinched(hand, threshold = THUMB_INDEX_PINCH_THRESHOLD) {
+export function isThumbIndexPinched(hand, threshold = THUMB_INDEX_PINCH_THRESHOLD) {
   const thumb = hand?.landmarks?.[FINGERTIPS.thumb];
   const index = hand?.landmarks?.[FINGERTIPS.index];
   return distance2d(thumb, index) <= threshold;
