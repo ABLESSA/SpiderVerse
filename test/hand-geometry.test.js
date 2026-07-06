@@ -12,6 +12,7 @@ import {
   buildThumbIndexFilterFrame,
   hasThumbIndexClusterPose,
   hasThumbIndexOnlyPose,
+  normalizeHandsForThumbIndexFrame,
   normalizeHands,
   smoothPoints
 } from "../src/hand-geometry.js";
@@ -116,6 +117,29 @@ test("falls back to x-position ordering when handedness labels are unclear", () 
   assert.equal(result.left, lowX);
   assert.equal(result.right, highX);
   assert.equal(result.status, "ready");
+});
+
+test("locked thumb-index frame hand ordering ignores other finger positions", () => {
+  const leftThumbIndex = makeHand("Unknown", 0.2);
+  const rightThumbIndex = makeHand("Unknown", 0.7);
+
+  leftThumbIndex.landmarks.forEach((point, index) => {
+    if (index !== FINGERTIPS.thumb && index !== FINGERTIPS.index) {
+      point.x = 0.96;
+    }
+  });
+  rightThumbIndex.landmarks.forEach((point, index) => {
+    if (index !== FINGERTIPS.thumb && index !== FINGERTIPS.index) {
+      point.x = 0.04;
+    }
+  });
+
+  const normalOrdering = normalizeHands([leftThumbIndex, rightThumbIndex]);
+  const lockedOrdering = normalizeHandsForThumbIndexFrame([leftThumbIndex, rightThumbIndex]);
+
+  assert.equal(normalOrdering.left, rightThumbIndex);
+  assert.equal(lockedOrdering.left, leftThumbIndex);
+  assert.equal(lockedOrdering.right, rightThumbIndex);
 });
 
 test("builds four same-name cross-hand fingertip pairs and ignores ring fingers", () => {

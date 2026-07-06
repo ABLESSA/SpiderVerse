@@ -2,7 +2,7 @@
 
 ## Goal
 
-Keep the existing `Poster Heat` effect, remove the other current filters, and add nine comic-inspired filters so multiple hand regions can show different visual styles at the same time.
+Keep the existing `热力海报` effect, remove the other current filters, and add nine comic-inspired filters so multiple hand regions can show different visual styles at the same time.
 
 ## Chosen Approach
 
@@ -10,24 +10,24 @@ Use the existing region picker model. Each of the three active hand regions keep
 
 ## Filter List
 
-- `Poster Heat`: existing heat-map poster effect.
-- `Noir Ink`: high-contrast black-and-white ink with hard shadows.
-- `Manga Screentone`: grayscale Japanese manga screentone with fine outline emphasis.
-- `Anime Cel`: clean cel-shaded color blocks with dark contour lines.
-- `American Pop`: saturated red, blue, and yellow with comic dot texture.
-- `Web Comic`: reference-image-inspired cyan, red, yellow, black-line, halftone look.
-- `Riso Misprint`: independent-comic riso print with limited colors and slight channel offsets.
-- `Blueprint Ink`: deep-blue sketch/blueprint linework.
-- `Newspaper Halftone`: muted newsprint comic with coarse dots.
-- `Glitch Print`: multiverse print error with RGB separation and scanline blocks.
+- `热力海报`: existing heat-map poster effect.
+- `黑白墨线`: high-contrast black-and-white ink with hard shadows.
+- `日漫网点`: grayscale Japanese manga screentone with fine outline emphasis.
+- `赛璐璐动画`: clean cel-shaded color blocks with dark contour lines.
+- `美式波普`: saturated red, blue, and yellow with comic dot texture.
+- `彩色漫画`: reference-image-inspired cyan, red, yellow, black-line, halftone look.
+- `错版孔版印刷`: independent-comic riso print with limited colors and slight channel offsets.
+- `蓝图线稿`: deep-blue sketch/blueprint linework.
+- `报纸半调`: muted newsprint comic with coarse dots.
+- `故障印刷`: multiverse print error with RGB separation and scanline blocks.
 
 ## Defaults
 
 The default three region effects will be:
 
-- Thumb to Index: `Web Comic`
-- Index to Middle: `Manga Screentone`
-- Middle to Pinky: `American Pop`
+- Thumb to Index: `彩色漫画`
+- Index to Middle: `日漫网点`
+- Middle to Pinky: `美式波普`
 
 These defaults emphasize the reference image and immediately show multiple comic styles without requiring setup.
 

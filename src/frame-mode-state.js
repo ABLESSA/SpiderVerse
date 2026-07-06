@@ -5,14 +5,14 @@ function cloneFrame(frame) {
   };
 }
 
-function orderedUnique(values) {
-  return values.filter((value, index) => values.indexOf(value) === index);
+function createEffectCycle(regionEffects, allEffectIds) {
+  return [...regionEffects, ...allEffectIds].filter((value, index, values) => values.indexOf(value) === index);
 }
 
-function chooseNextEffect({ frozenFrames, liveEffectId, regionEffects, allEffectIds }) {
-  const usedEffectIds = new Set([...frozenFrames.map((frame) => frame.effectId), liveEffectId]);
-  const preferred = orderedUnique([...regionEffects.slice(1), ...allEffectIds]);
-  return preferred.find((effectId) => !usedEffectIds.has(effectId)) ?? preferred[0] ?? liveEffectId;
+function chooseNextEffect({ frozenFrameCount, regionEffects, allEffectIds, fallbackEffectId }) {
+  const cycle = createEffectCycle(regionEffects, allEffectIds);
+  if (cycle.length === 0) return fallbackEffectId;
+  return cycle[frozenFrameCount % cycle.length];
 }
 
 export function createFrameModeState(regionEffects) {
@@ -46,10 +46,10 @@ export function updateFrameModeState(state, { liveFrame, bothHandsPinched, regio
   return {
     frozenFrames,
     liveEffectId: chooseNextEffect({
-      frozenFrames,
-      liveEffectId: state.liveEffectId,
+      frozenFrameCount: frozenFrames.length,
       regionEffects,
-      allEffectIds
+      allEffectIds,
+      fallbackEffectId: state.liveEffectId
     }),
     wasPinched: bothHandsPinched
   };

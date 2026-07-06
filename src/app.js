@@ -3,6 +3,7 @@ import {
   buildLockedThumbIndexFilterFrame,
   isThumbIndexPinched,
   normalizeHands,
+  normalizeHandsForThumbIndexFrame,
   smoothPoints
 } from "./hand-geometry.js";
 import {
@@ -167,7 +168,7 @@ function unflattenRegions(regions, points) {
 
 function updateQuads(result) {
   const hands = buildDetectedHands(result);
-  const normalized = normalizeHands(hands);
+  const normalized = thumbIndexFrameLocked ? normalizeHandsForThumbIndexFrame(hands) : normalizeHands(hands);
 
   if (normalized.status === "no-hands") {
     clearTracking("Show both hands to begin.");

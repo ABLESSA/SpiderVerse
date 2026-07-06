@@ -54,52 +54,14 @@ float diagonalLines(vec2 uv, float scale, float width) {
   return 1.0 - smoothstep(width, width + 0.014, line);
 }
 
-vec3 halftonePop(vec2 uv) {
-  vec3 color = sampleVideo(uv);
-  float dots = halftone(uv + vec2(float(u_region) * 0.023, 0.0), 72.0);
-  float edge = edgeMask(uv);
-  vec3 poster = floor(pow(color, vec3(0.76)) * 4.0) / 3.0;
-  vec3 paperYellow = vec3(1.0, 0.9, 0.18);
-  vec3 magentaBlue = poster * vec3(1.3, 0.72, 1.62);
-  vec3 pop = mix(magentaBlue, paperYellow, dots * 0.5);
-  return mix(pop, vec3(0.0, 0.0, 0.03), edge * 0.78);
+float crossHatch(vec2 uv, float value) {
+  float hatchA = diagonalLines(uv, 54.0, 0.018);
+  float hatchB = diagonalLines(vec2(uv.x, 1.0 - uv.y), 42.0, 0.015);
+  return max(hatchA, hatchB) * (1.0 - value);
 }
 
-vec3 chromaticPunch(vec2 uv) {
-  float wave = sin((uv.y + u_time * 0.7 + float(u_region) * 0.13) * 104.0) * 0.01;
-  float block = step(0.83, fract((uv.y + u_time * 0.28) * 20.0)) * 0.028;
-  vec2 shift = vec2(wave + block, 0.0);
-  float r = sampleVideo(uv + shift).r;
-  float g = sampleVideo(uv).g;
-  float b = sampleVideo(uv - shift).b;
-  float edge = edgeMask(uv);
-  float scan = diagonalLines(uv, 44.0, 0.026);
-  return vec3(r, g, b) * vec3(1.44, 1.08, 1.62) + vec3(scan * 0.2, edge * 0.12, edge * 0.42);
-}
-
-vec3 inkBurst(vec2 uv) {
-  vec3 color = sampleVideo(uv);
-  float value = luminance(color);
-  float edge = edgeMask(uv);
-  float hatchA = diagonalLines(uv, 60.0, 0.022);
-  float hatchB = diagonalLines(vec2(uv.x, 1.0 - uv.y), 46.0, 0.018);
-  vec3 paper = vec3(1.0, 0.91, 0.72);
-  vec3 ink = vec3(0.015, 0.012, 0.026);
-  vec3 wash = mix(vec3(0.78, 0.06, 0.22), vec3(0.08, 0.16, 0.95), smoothstep(0.18, 0.88, value));
-  float lines = max(edge, max(hatchA, hatchB) * (1.0 - value));
-  return mix(mix(paper, wash, 0.58), ink, clamp(lines * 1.14, 0.0, 1.0));
-}
-
-vec3 speedLines(vec2 uv) {
-  vec3 color = sampleVideo(uv);
-  vec2 center = vec2(0.5, 0.48);
-  vec2 delta = uv - center;
-  float angle = atan(delta.y, delta.x);
-  float radius = length(delta);
-  float rays = 1.0 - smoothstep(0.018, 0.052, abs(fract((angle + u_time * 0.75) * 8.0 + radius * 18.0) - 0.5));
-  float edge = edgeMask(uv);
-  vec3 poster = floor(color * 5.0) / 4.0;
-  return poster * vec3(0.82, 1.22, 1.45) + vec3(rays * 0.45, rays * 0.34, rays * 0.08) + vec3(edge * 0.12);
+vec3 posterize(vec3 color, float levels) {
+  return floor(color * levels) / max(levels - 1.0, 1.0);
 }
 
 vec3 posterHeat(vec2 uv) {
@@ -115,20 +77,147 @@ vec3 posterHeat(vec2 uv) {
   return floor(heatColor * 5.0) / 4.0 + vec3(dots * 0.14) - vec3(edge * 0.24, edge * 0.12, 0.0);
 }
 
+vec3 noirInk(vec2 uv) {
+  float value = luminance(sampleVideo(uv));
+  float edge = edgeMask(uv);
+  float ink = 1.0 - smoothstep(0.28, 0.62, value);
+  float shadows = smoothstep(0.78, 0.34, value);
+  float hatch = crossHatch(uv + vec2(float(u_region) * 0.015, 0.0), value);
+  float linework = clamp(max(edge * 1.4, max(ink * 0.72, hatch * 0.9)) + shadows * 0.28, 0.0, 1.0);
+  vec3 paper = vec3(0.96, 0.94, 0.86);
+  vec3 black = vec3(0.015, 0.014, 0.018);
+  return mix(paper, black, linework);
+}
+
+vec3 mangaScreentone(vec2 uv) {
+  vec3 color = sampleVideo(uv);
+  float value = luminance(color);
+  float toneDots = halftone(uv + vec2(float(u_region) * 0.021, 0.0), 86.0);
+  float shadowTone = toneDots * smoothstep(0.78, 0.18, value);
+  float edge = edgeMask(uv);
+  float hatch = crossHatch(uv, value) * 0.42;
+  vec3 paper = vec3(0.98, 0.97, 0.93);
+  vec3 gray = mix(vec3(0.86), vec3(0.34), shadowTone + hatch);
+  return mix(mix(paper, gray, 0.82), vec3(0.02), clamp(edge * 1.18, 0.0, 1.0));
+}
+
+vec3 animeCel(vec2 uv) {
+  vec3 color = sampleVideo(uv);
+  float value = luminance(color);
+  vec3 cel = posterize(pow(color, vec3(0.82)) * vec3(1.1, 1.08, 1.16), 4.0);
+  float shade = smoothstep(0.46, 0.2, value);
+  float highlight = smoothstep(0.68, 0.92, value);
+  float edge = edgeMask(uv);
+  vec3 shadow = cel * vec3(0.48, 0.54, 0.72);
+  vec3 lit = mix(cel, vec3(1.0, 0.92, 0.68), highlight * 0.28);
+  return mix(mix(lit, shadow, shade * 0.52), vec3(0.02, 0.025, 0.04), clamp(edge * 1.08, 0.0, 1.0));
+}
+
+vec3 americanPop(vec2 uv) {
+  vec3 color = sampleVideo(uv);
+  float value = luminance(color);
+  float dots = halftone(uv + vec2(float(u_region) * 0.019, 0.0), 68.0);
+  float edge = edgeMask(uv);
+  vec3 red = vec3(0.95, 0.04, 0.08);
+  vec3 blue = vec3(0.02, 0.22, 0.95);
+  vec3 yellow = vec3(1.0, 0.86, 0.08);
+  vec3 pop = mix(blue, red, smoothstep(0.22, 0.72, color.r + color.g * 0.35));
+  pop = mix(pop, yellow, smoothstep(0.58, 0.96, value) * 0.58);
+  pop = posterize(pop + vec3(dots * 0.16), 4.0);
+  return mix(pop, vec3(0.01, 0.01, 0.03), clamp(edge * 1.12, 0.0, 1.0));
+}
+
+vec3 webComic(vec2 uv) {
+  vec3 color = sampleVideo(uv);
+  float value = luminance(color);
+  float dots = halftone(uv * vec2(1.08, 1.0) + vec2(float(u_region) * 0.017, 0.0), 58.0);
+  float edge = edgeMask(uv);
+  vec3 cyan = vec3(0.0, 0.78, 1.0);
+  vec3 red = vec3(1.0, 0.08, 0.18);
+  vec3 yellow = vec3(1.0, 0.88, 0.05);
+  vec3 violet = vec3(0.08, 0.0, 0.22);
+  vec3 comic = mix(violet, cyan, smoothstep(0.12, 0.72, color.b + color.g * 0.35));
+  comic = mix(comic, red, smoothstep(0.34, 0.88, color.r));
+  comic = mix(comic, yellow, smoothstep(0.66, 0.96, value) * 0.68);
+  comic = posterize(comic, 5.0) + vec3(dots * 0.12);
+  return mix(comic, vec3(0.012, 0.01, 0.018), clamp(edge * 1.26, 0.0, 1.0));
+}
+
+vec3 risoMisprint(vec2 uv) {
+  vec2 wobble = vec2(sin((uv.y + u_time * 0.15) * 42.0), cos((uv.x - u_time * 0.12) * 34.0)) * 0.003;
+  vec3 base = sampleVideo(uv);
+  float value = luminance(base);
+  float warm = luminance(sampleVideo(uv + wobble) * vec3(1.18, 0.58, 0.2));
+  float cool = luminance(sampleVideo(uv - wobble * 1.4) * vec3(0.12, 0.7, 1.2));
+  float grain = halftone(uv + vec2(0.013, float(u_region) * 0.021), 48.0);
+  float edge = edgeMask(uv);
+  vec3 paper = vec3(0.96, 0.9, 0.76);
+  vec3 orange = vec3(1.0, 0.28, 0.12) * smoothstep(0.12, 0.84, warm);
+  vec3 teal = vec3(0.0, 0.62, 0.68) * smoothstep(0.18, 0.86, cool);
+  vec3 ink = paper * 0.52 + orange * 0.62 + teal * 0.68 + vec3(grain * 0.08);
+  return mix(ink, vec3(0.04, 0.025, 0.02), clamp(edge * (0.52 + (1.0 - value) * 0.42), 0.0, 1.0));
+}
+
+vec3 blueprintInk(vec2 uv) {
+  float value = luminance(sampleVideo(uv));
+  float edge = edgeMask(uv);
+  float gridA = 1.0 - smoothstep(0.012, 0.018, abs(fract(uv.x * 18.0) - 0.5));
+  float gridB = 1.0 - smoothstep(0.012, 0.018, abs(fract(uv.y * 18.0) - 0.5));
+  float sketch = max(edge * 1.32, crossHatch(uv, value) * 0.64);
+  vec3 blue = vec3(0.02, 0.12, 0.42);
+  vec3 line = vec3(0.72, 0.94, 1.0);
+  float grid = max(gridA, gridB) * 0.1;
+  return mix(blue + vec3(grid), line, clamp(sketch + smoothstep(0.82, 0.98, value) * 0.18, 0.0, 1.0));
+}
+
+vec3 newspaperHalftone(vec2 uv) {
+  vec3 color = sampleVideo(uv);
+  float value = luminance(color);
+  float coarseDots = halftone(uv + vec2(float(u_region) * 0.011, 0.0), 42.0);
+  float edge = edgeMask(uv);
+  vec3 paper = vec3(0.92, 0.86, 0.72);
+  vec3 faded = mix(vec3(0.18, 0.16, 0.12), vec3(0.78, 0.66, 0.42), smoothstep(0.18, 0.86, value));
+  vec3 ink = mix(faded, vec3(0.08, 0.07, 0.06), coarseDots * (1.0 - value) * 0.84);
+  return mix(mix(paper, ink, 0.84), vec3(0.02, 0.018, 0.014), clamp(edge * 0.92, 0.0, 1.0));
+}
+
+vec3 glitchPrint(vec2 uv) {
+  float strip = step(0.78, fract((uv.y + u_time * 0.22) * 18.0));
+  float jitter = (sin((uv.y + float(u_region) * 0.07) * 96.0 + u_time * 4.0) * 0.006) + strip * 0.018;
+  vec2 shift = vec2(jitter, 0.0);
+  float r = sampleVideo(uv + shift).r;
+  float g = sampleVideo(uv + vec2(-shift.x * 0.34, shift.x * 0.18)).g;
+  float b = sampleVideo(uv - shift).b;
+  vec3 color = vec3(r, g, b);
+  float scan = 1.0 - smoothstep(0.02, 0.032, abs(fract((uv.y + u_time * 0.08) * 72.0) - 0.5));
+  float edge = edgeMask(uv);
+  return posterize(color * vec3(1.38, 1.16, 1.52), 5.0) + vec3(scan * 0.12, strip * 0.1, edge * 0.34);
+}
+
 void main() {
   vec3 color = sampleVideo(v_uv);
 
   if (u_filtered == 1) {
     if (u_mode == 0) {
-      color = halftonePop(v_uv);
-    } else if (u_mode == 1) {
-      color = chromaticPunch(v_uv);
-    } else if (u_mode == 2) {
-      color = inkBurst(v_uv);
-    } else if (u_mode == 3) {
-      color = speedLines(v_uv);
-    } else {
       color = posterHeat(v_uv);
+    } else if (u_mode == 1) {
+      color = noirInk(v_uv);
+    } else if (u_mode == 2) {
+      color = mangaScreentone(v_uv);
+    } else if (u_mode == 3) {
+      color = animeCel(v_uv);
+    } else if (u_mode == 4) {
+      color = americanPop(v_uv);
+    } else if (u_mode == 5) {
+      color = webComic(v_uv);
+    } else if (u_mode == 6) {
+      color = risoMisprint(v_uv);
+    } else if (u_mode == 7) {
+      color = blueprintInk(v_uv);
+    } else if (u_mode == 8) {
+      color = newspaperHalftone(v_uv);
+    } else {
+      color = glitchPrint(v_uv);
     }
   }
 

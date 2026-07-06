@@ -28,11 +28,18 @@ function centerX(hand) {
   return hand.landmarks.reduce((sum, point) => sum + point.x, 0) / hand.landmarks.length;
 }
 
+function thumbIndexCenterX(hand) {
+  const thumb = hand?.landmarks?.[FINGERTIPS.thumb];
+  const index = hand?.landmarks?.[FINGERTIPS.index];
+  if (!thumb || !index) return centerX(hand);
+  return (thumb.x + index.x) / 2;
+}
+
 function normalizeLabel(hand) {
   return String(hand?.label ?? "").toLowerCase();
 }
 
-export function normalizeHands(hands) {
+function normalizeHandsByCenter(hands, getCenterX) {
   if (!Array.isArray(hands) || hands.length < 2) {
     return {
       left: null,
@@ -49,7 +56,28 @@ export function normalizeHands(hands) {
     return { left: labeledLeft, right: labeledRight, status: "ready" };
   }
 
-  const sorted = candidates.slice().sort((a, b) => centerX(a) - centerX(b));
+  const sorted = candidates.slice().sort((a, b) => getCenterX(a) - getCenterX(b));
+  return { left: sorted[0], right: sorted[1], status: "ready" };
+}
+
+export function normalizeHands(hands) {
+  return normalizeHandsByCenter(hands, centerX);
+}
+
+export function normalizeHandsForThumbIndexFrame(hands) {
+  if (!Array.isArray(hands) || hands.length < 2) {
+    return normalizeHandsByCenter(hands, thumbIndexCenterX);
+  }
+
+  const candidates = hands.slice(0, 2);
+  const labeledLeft = candidates.find((hand) => normalizeLabel(hand) === "left");
+  const labeledRight = candidates.find((hand) => normalizeLabel(hand) === "right");
+
+  if (labeledLeft && labeledRight && labeledLeft !== labeledRight) {
+    return { left: labeledLeft, right: labeledRight, status: "ready" };
+  }
+
+  const sorted = candidates.slice().sort((a, b) => thumbIndexCenterX(a) - thumbIndexCenterX(b));
   return { left: sorted[0], right: sorted[1], status: "ready" };
 }
 
