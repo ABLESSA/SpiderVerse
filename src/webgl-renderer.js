@@ -11,7 +11,7 @@ void main() {
   vec2 zeroToOne = a_position / u_resolution;
   vec2 clipSpace = zeroToOne * 2.0 - 1.0;
   gl_Position = vec4(clipSpace * vec2(1.0, -1.0), 0.0, 1.0);
-  v_uv = a_uv;
+  v_uv = u_mirror == 1 ? vec2(1.0 - a_uv.x, a_uv.y) : a_uv;
 }
 `;
 
