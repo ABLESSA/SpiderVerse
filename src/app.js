@@ -40,6 +40,8 @@ let latestQuads = [];
 let previousRegionPoints = null;
 let thumbIndexFrameLocked = false;
 let frameModeState = createFrameModeState(regionEffects);
+let cameraStream = null;
+let cameraMode = "environment";
 
 function setStatus(message) {
   statusEl.textContent = message;
@@ -96,20 +98,26 @@ async function startCamera() {
     throw new Error("This browser does not support camera access.");
   }
 
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: { exact: "environment" },
-      width: { ideal: 1280 },
-      height: { ideal: 720 }
-    },
-    audio: false
-  });
+cameraStream?.getTracks().forEach((track) => track.stop());
 
-  video.srcObject = stream;
+cameraStream = await navigator.mediaDevices.getUserMedia({
+  video: {
+    facingMode: { ideal: cameraMode },
+    width: { ideal: 1280 },
+    height: { ideal: 720 }
+  },
+  audio: false
+});
+
+  video.srcObject = cameraStream;
   await video.play();
   syncStageToCamera();
   window.addEventListener("resize", fitStageToViewport);
 }
+document.querySelector("#switch-camera")?.addEventListener("click", async () => {
+  cameraMode = cameraMode === "environment" ? "user" : "environment";
+  await startCamera();
+});
 
 function syncStageToCamera() {
   const width = video.videoWidth || 1280;
