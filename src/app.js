@@ -98,7 +98,12 @@ async function startCamera() {
     throw new Error("This browser does not support camera access.");
   }
 
-cameraStream?.getTracks().forEach((track) => track.stop());
+if (cameraStream) {
+  cameraStream.getTracks().forEach((track) => track.stop());
+  cameraStream = null;
+  video.srcObject = null;
+  await new Promise((resolve) => setTimeout(resolve, 300));
+}
 
 cameraStream = await navigator.mediaDevices.getUserMedia({
   video: {
