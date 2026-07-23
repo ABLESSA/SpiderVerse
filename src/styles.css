@@ -294,3 +294,6 @@ h1 {
     white-space: normal;
   }
 }
+.status {
+  display: none !important;
+}
