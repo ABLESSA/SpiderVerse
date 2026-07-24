@@ -63,7 +63,9 @@ float crossHatch(vec2 uv, float value) {
 vec3 posterize(vec3 color, float levels) {
   return floor(color * levels) / max(levels - 1.0, 1.0);
 }
-
+vec3 negative(vec2 uv) {
+  return vec3(1.0) - sampleVideo(uv);
+}
 vec3 posterHeat(vec2 uv) {
   vec3 color = sampleVideo(uv);
   float value = luminance(color);
