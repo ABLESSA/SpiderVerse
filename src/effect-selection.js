@@ -9,6 +9,7 @@ export const EFFECTS = Object.freeze([
   { id: "blueprintInk", label: "蓝图线稿" },
   { id: "newspaperHalftone", label: "报纸半调" },
   { id: "glitchPrint", label: "故障印刷" }
+  { id: "negative", label: "负片" }
 ]);
 
 export const DEFAULT_REGION_EFFECTS = Object.freeze([
