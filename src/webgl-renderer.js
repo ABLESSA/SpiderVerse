@@ -216,10 +216,12 @@ void main() {
       color = risoMisprint(v_uv);
     } else if (u_mode == 7) {
       color = blueprintInk(v_uv);
-    } else if (u_mode == 8) {
+       } else if (u_mode == 8) {
       color = newspaperHalftone(v_uv);
-    } else {
+    } else if (u_mode == 9) {
       color = glitchPrint(v_uv);
+    } else if (u_mode == 10) {
+      color = negative(v_uv);
     }
   }
 
