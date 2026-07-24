@@ -217,7 +217,7 @@ void main() {
           } else if (u_mode == 8) {
       color = newspaperHalftone(v_uv);
     } else {
-      color = glitchPrint(v_uv);
+      color = vec3(1.0) - sampleVideo(v_uv);
     }
   }
 
